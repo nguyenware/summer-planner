@@ -1366,11 +1366,12 @@ function toIcsDate(dateStr) {
 function icsEscape(s) {
   if (!s) return '';
   s = String(s);
-  s = s.replace(/\/g, '\\');
-  s = s.replace(/;/g, '\;');
-  s = s.replace(/,/g, '\,');
-  s = s.replace(/?
-/g, '\n');
+  s = s.split('\\').join('\\\\');
+  s = s.split(';').join('\\;');
+  s = s.split(',').join('\\,');
+  s = s.split('\r\n').join('\\n');
+  s = s.split('\n').join('\\n');
+  s = s.split('\r').join('\\n');
   return s;
 }
 
