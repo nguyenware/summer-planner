@@ -248,8 +248,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
     <h1>Summer Planner <em style="font-style:italic;color:var(--sun)">2026</em></h1>
     <p>Enter the password to continue</p>
     <div class="gate-input-row">
-      <input id="gate-input" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitGate()">
-      <button class="gate-btn" onclick="submitGate()">Enter</button>
+      <input id="gate-input" type="password" placeholder="Password">
+      <button class="gate-btn" id="gate-btn">Enter</button>
     </div>
     <div class="gate-error" id="gate-error">Incorrect password — try again</div>
   </div>
@@ -493,6 +493,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 // In production this hits /api (the Pages Function).
 // In local dev with `wrangler pages dev`, same URL works.
 const API = '/api';
+
+// ─── Session password (must be defined before apiGet/apiPost use it) ──
+const SESSION_PASS_KEY = 'sp-pass-2026';
+function getStoredPass() {
+  return sessionStorage.getItem(SESSION_PASS_KEY) || '';
+}
+
 
 const COLORS = [
   {id:'blue',   swatch:'#378ADD', light:'#E6F1FB', text:'#185FA5', avatarBg:'#B5D4F4', avatarText:'#0C447C'},
@@ -1454,12 +1461,6 @@ function esc(s){
 }
 
 // ─── Password gate ────────────────────────────────────────────────
-const SESSION_PASS_KEY = 'sp-pass-2026';
-
-function getStoredPass() {
-  return sessionStorage.getItem(SESSION_PASS_KEY) || '';
-}
-
 async function submitGate() {
   const input = document.getElementById('gate-input');
   const pw = input.value.trim();
@@ -1510,6 +1511,10 @@ async function submitGate() {
   // Show gate
   document.getElementById('gate-screen').style.display = 'flex';
   setTimeout(() => document.getElementById('gate-input').focus(), 50);
+
+  // Wire gate events here — after all functions are defined
+  document.getElementById('gate-btn').addEventListener('click', submitGate);
+  document.getElementById('gate-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitGate(); });
 })();
 </script>
 </body>
