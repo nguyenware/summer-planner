@@ -666,7 +666,7 @@ async function silentSave() {
 }
 
 // ─── Boot ────────────────────────────────────────────────────────
-async function boot() {
+async function boot(prefetchedState) {
   // Detect offline
   window.addEventListener('online',  () => document.getElementById('offline-banner').classList.remove('show'));
   window.addEventListener('offline', () => document.getElementById('offline-banner').classList.add('show'));
@@ -676,30 +676,32 @@ async function boot() {
   const now = new Date();
   if (now.getMonth() >= 5 && now.getMonth() <= 7) { curMonth=now.getMonth(); curYear=now.getFullYear(); }
 
-  // Show the login screen immediately so there's no blank page while we fetch
-  const saved = localStorage.getItem('sp-user-2026');
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-loading').style.display = 'block';
-
-  try {
-    state = await apiGet();
-
-    // Seed on first ever load — silent save, no toast
-    if (state.users.length === 0) {
-      state.users = [SEED_USER];
-      state.activities = SEED_ACTIVITIES;
-      await silentSave();
+  if (prefetchedState) {
+    // Gate/init already fetched — use it directly, no second request
+    state = prefetchedState;
+  } else {
+    // Fallback: fetch ourselves (shouldn't normally happen)
+    try {
+      state = await apiGet();
+    } catch(e) {
+      showToast('Could not reach API — check Worker setup', 'error');
+      console.error(e);
     }
-  } catch(e) {
-    showToast('Could not reach API — check Worker setup', 'error');
-    console.error(e);
   }
 
+  // Seed on first ever load — silent save, no toast
+  if (state.users.length === 0) {
+    state.users = [SEED_USER];
+    state.activities = SEED_ACTIVITIES;
+    await silentSave();
+  }
+
+  const saved = localStorage.getItem('sp-user-2026');
   if (saved && state.users.find(u=>u.id===saved)) {
     currentUserId = saved;
-    document.getElementById('login-screen').style.display = 'none';
     showApp();
   } else {
+    document.getElementById('login-screen').style.display = 'flex';
     renderLogin();
   }
 }
@@ -1475,12 +1477,12 @@ async function submitGate() {
       btn.textContent = 'Enter'; btn.disabled = false;
       return;
     }
-    // Password accepted — hide gate immediately, show login shell, then boot
+    // Password accepted — store pass, parse the response we already have
     sessionStorage.setItem(SESSION_PASS_KEY, pw);
+    const data = await r.json();
     document.getElementById('gate-screen').style.display = 'none';
     document.getElementById('gate-error').classList.remove('show');
-    document.getElementById('login-screen').style.display = 'flex';
-    boot();
+    boot(data);
   } catch(e) {
     document.getElementById('gate-error').textContent = 'Could not reach server — check connection';
     document.getElementById('gate-error').classList.add('show');
@@ -1496,9 +1498,9 @@ async function submitGate() {
     try {
       const r = await fetch(API, { headers: { 'Authorization': 'Bearer ' + stored } });
       if (r.ok) {
+        const data = await r.json();
         document.getElementById('gate-screen').style.display = 'none';
-        document.getElementById('login-screen').style.display = 'flex';
-        boot();
+        boot(data);
         return;
       }
     } catch(e) {}
