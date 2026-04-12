@@ -1365,12 +1365,13 @@ function toIcsDate(dateStr) {
 
 function icsEscape(s) {
   if (!s) return '';
-  return String(s)
-    .replace(/\/g, '\\')
-    .replace(/;/g, '\;')
-    .replace(/,/g, '\,')
-    .replace(/
+  s = String(s);
+  s = s.replace(/\/g, '\\');
+  s = s.replace(/;/g, '\;');
+  s = s.replace(/,/g, '\,');
+  s = s.replace(/?
 /g, '\n');
+  return s;
 }
 
 function foldIcsLine(line) {
