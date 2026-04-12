@@ -213,6 +213,30 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .gate-btn:hover { opacity: 0.85; }
 .gate-error { font-size: 13px; color: #A32D2D; margin-top: 10px; display: none; }
 .gate-error.show { display: block; }
+
+/* Export modal */
+.export-btn { font-size: 13px; font-family: 'DM Sans', sans-serif; padding: 7px 14px; background: none; color: var(--ink); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.export-btn:hover { background: var(--page-bg); }
+.export-kid-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+.export-kid-pill { font-size: 12px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.12s; background: white; }
+.export-kid-pill.active { background: var(--ink); color: white; border-color: var(--ink); }
+.export-event-list { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; margin-bottom: 1rem; padding-right: 2px; }
+.export-event-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: white; cursor: pointer; transition: border-color 0.1s; }
+.export-event-row:hover { border-color: rgba(26,26,46,0.25); }
+.export-event-row.checked { border-color: #1D9E75; background: #F4FBF8; }
+.export-checkbox { width: 16px; height: 16px; border: 1.5px solid var(--border); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; transition: all 0.1s; }
+.export-event-row.checked .export-checkbox { background: #1D9E75; border-color: #1D9E75; color: white; font-size: 10px; }
+.export-event-info { flex: 1; }
+.export-event-title { font-size: 13px; font-weight: 500; color: var(--ink); }
+.export-event-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.export-event-kids { font-size: 11px; color: #0F6E56; margin-top: 2px; }
+.export-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 1rem; border-top: 1px solid var(--border); }
+.export-count { font-size: 13px; color: var(--muted); }
+.export-count strong { color: var(--ink); }
+.export-select-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+.export-select-link { font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline; background: none; border: none; font-family: 'DM Sans', sans-serif; padding: 0; }
+.export-select-link:hover { color: var(--ink); }
+.export-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 2rem 0; font-style: italic; }
 </style>
 </head>
 <body>
@@ -282,10 +306,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
   </div>
 
   <div class="main">
-    <div class="tabs">
-      <button class="tab active" onclick="setTab('calendar',this)">Calendar</button>
-      <button class="tab" onclick="setTab('list',this)">List</button>
-      <button class="tab" onclick="setTab('people',this)">People</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px">
+      <div class="tabs" style="margin-bottom:0">
+        <button class="tab active" onclick="setTab('calendar',this)">Calendar</button>
+        <button class="tab" onclick="setTab('list',this)">List</button>
+        <button class="tab" onclick="setTab('people',this)">People</button>
+      </div>
+      <button class="export-btn" onclick="openExportModal()">↓ Export to calendar</button>
     </div>
 
     <div id="tab-calendar">
@@ -320,6 +347,30 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
         <button class="add-btn" onclick="openPeopleModal()">+ Add / manage people</button>
       </div>
       <div class="people-grid" id="people-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Export to calendar modal -->
+<div id="export-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeExportModal()">
+  <div class="modal">
+    <h2>Export to calendar</h2>
+    <div class="form-row" style="margin-bottom:8px">
+      <label>Filter by kid</label>
+      <div class="export-kid-filters" id="export-kid-filters"></div>
+    </div>
+    <div class="export-select-row">
+      <button class="export-select-link" onclick="exportSelectAll()">Select all</button>
+      <span style="color:var(--border)">·</span>
+      <button class="export-select-link" onclick="exportSelectNone()">None</button>
+    </div>
+    <div class="export-event-list" id="export-event-list"></div>
+    <div class="export-footer">
+      <span class="export-count" id="export-count"></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn-cancel" onclick="closeExportModal()">Cancel</button>
+        <button class="btn-save" onclick="downloadIcs()">Download .ics</button>
+      </div>
     </div>
   </div>
 </div>
@@ -609,6 +660,11 @@ async function flushSave() {
   }
 }
 
+async function silentSave() {
+  // Save without showing any toast — used for background/seed writes
+  try { await apiPost(state); } catch(e) { console.error('Seed save failed:', e); }
+}
+
 // ─── Boot ────────────────────────────────────────────────────────
 async function boot() {
   // Detect offline
@@ -620,24 +676,28 @@ async function boot() {
   const now = new Date();
   if (now.getMonth() >= 5 && now.getMonth() <= 7) { curMonth=now.getMonth(); curYear=now.getFullYear(); }
 
+  // Show the login screen immediately so there's no blank page while we fetch
+  const saved = localStorage.getItem('sp-user-2026');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-loading').style.display = 'block';
+
   try {
     state = await apiGet();
 
-    // Seed on first ever load
+    // Seed on first ever load — silent save, no toast
     if (state.users.length === 0) {
       state.users = [SEED_USER];
       state.activities = SEED_ACTIVITIES;
-      await flushSave();
+      await silentSave();
     }
   } catch(e) {
     showToast('Could not reach API — check Worker setup', 'error');
     console.error(e);
-    // Graceful degradation: show login anyway with empty state
   }
 
-  const saved = localStorage.getItem('sp-user-2026');
   if (saved && state.users.find(u=>u.id===saved)) {
     currentUserId = saved;
+    document.getElementById('login-screen').style.display = 'none';
     showApp();
   } else {
     renderLogin();
@@ -1166,6 +1226,225 @@ function removePerson(id){
   renderStats();renderFilters();renderPeople();
 }
 
+
+// ─── Export to calendar ───────────────────────────────────────────
+let exportKidFilter = 'all'; // 'all' or a kid name
+let exportChecked = new Set();
+
+function openExportModal() {
+  exportKidFilter = 'all';
+  // Pre-check all activities
+  exportChecked = new Set(state.activities.map(a => a.id));
+  renderExportKidFilters();
+  renderExportEventList();
+  document.getElementById('export-modal').style.display = 'flex';
+}
+function closeExportModal() {
+  document.getElementById('export-modal').style.display = 'none';
+}
+
+function renderExportKidFilters() {
+  const bar = document.getElementById('export-kid-filters');
+  bar.innerHTML = '';
+  const kids = getGlobalKids();
+
+  const allPill = document.createElement('button');
+  allPill.className = 'export-kid-pill' + (exportKidFilter === 'all' ? ' active' : '');
+  allPill.textContent = 'All events';
+  allPill.onclick = () => { exportKidFilter = 'all'; renderExportKidFilters(); renderExportEventList(); };
+  bar.appendChild(allPill);
+
+  kids.forEach(kid => {
+    const pill = document.createElement('button');
+    pill.className = 'export-kid-pill' + (exportKidFilter === kid ? ' active' : '');
+    pill.textContent = kid;
+    pill.onclick = () => {
+      exportKidFilter = kid;
+      // Auto-check only events for this kid
+      exportChecked = new Set(
+        state.activities
+          .filter(a => kidsForActivity(a).includes(kid))
+          .map(a => a.id)
+      );
+      renderExportKidFilters();
+      renderExportEventList();
+    };
+    bar.appendChild(pill);
+  });
+}
+
+function kidsForActivity(a) {
+  if (!a.kids) return [];
+  return Array.isArray(a.kids) ? a.kids : a.kids.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function exportVisibleActivities() {
+  return state.activities
+    .filter(a => {
+      if (exportKidFilter === 'all') return true;
+      return kidsForActivity(a).includes(exportKidFilter);
+    })
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+}
+
+function renderExportEventList() {
+  const list = document.getElementById('export-event-list');
+  list.innerHTML = '';
+  const acts = exportVisibleActivities();
+
+  if (!acts.length) {
+    list.innerHTML = '<div class="export-empty">No events match this filter</div>';
+    updateExportCount();
+    return;
+  }
+
+  acts.forEach(a => {
+    const cat = CAT[a.category] || CAT.other;
+    const checked = exportChecked.has(a.id);
+    const kids = kidsForActivity(a);
+    const row = document.createElement('div');
+    row.className = 'export-event-row' + (checked ? ' checked' : '');
+    row.dataset.id = a.id;
+    row.innerHTML = `
+      <div class="export-checkbox">${checked ? '✓' : ''}</div>
+      <div class="export-event-info">
+        <div class="export-event-title">${cat.emoji} ${esc(a.title)}</div>
+        <div class="export-event-meta">${dateLabel(a)}${a.time ? ' · ' + esc(a.time) : ''}${a.location ? ' · ' + esc(a.location) : ''}</div>
+        ${kids.length ? `<div class="export-event-kids">👦 ${kids.map(k => esc(k)).join(', ')}</div>` : ''}
+      </div>
+    `;
+    row.onclick = () => toggleExportRow(a.id, row);
+    list.appendChild(row);
+  });
+
+  updateExportCount();
+}
+
+function toggleExportRow(id, row) {
+  if (exportChecked.has(id)) {
+    exportChecked.delete(id);
+    row.classList.remove('checked');
+    row.querySelector('.export-checkbox').textContent = '';
+  } else {
+    exportChecked.add(id);
+    row.classList.add('checked');
+    row.querySelector('.export-checkbox').textContent = '✓';
+  }
+  updateExportCount();
+}
+
+function exportSelectAll() {
+  exportVisibleActivities().forEach(a => exportChecked.add(a.id));
+  renderExportEventList();
+}
+function exportSelectNone() {
+  exportVisibleActivities().forEach(a => exportChecked.delete(a.id));
+  renderExportEventList();
+}
+
+function updateExportCount() {
+  const total = exportChecked.size;
+  document.getElementById('export-count').innerHTML =
+    `<strong>${total}</strong> event${total === 1 ? '' : 's'} selected`;
+}
+
+// ─── ICS generation ───────────────────────────────────────────────
+function toIcsDate(dateStr) {
+  // Returns YYYYMMDD for all-day events
+  return dateStr.replace(/-/g, '');
+}
+
+function icsEscape(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/\/g, '\\')
+    .replace(/;/g, '\;')
+    .replace(/,/g, '\,')
+    .replace(/
+/g, '\n');
+}
+
+function foldIcsLine(line) {
+  // RFC 5545: fold lines longer than 75 octets
+  const chunks = [];
+  while (line.length > 75) {
+    chunks.push(line.slice(0, 75));
+    line = ' ' + line.slice(75);
+  }
+  chunks.push(line);
+  return chunks.join('\r\n');
+}
+
+function buildIcs() {
+  const toExport = state.activities.filter(a => exportChecked.has(a.id));
+  const now = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z';
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Summer Planner 2026//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Summer 2026',
+    'X-WR-TIMEZONE:America/Los_Angeles',
+  ];
+
+  toExport.forEach(a => {
+    const kids = kidsForActivity(a);
+    const descParts = [];
+    if (kids.length) descParts.push('Kids: ' + kids.join(', '));
+    if (a.time) descParts.push('Time: ' + a.time);
+    if (a.cost) descParts.push('Cost: ' + fmtCost(a.cost));
+    if (a.notes) descParts.push(a.notes);
+    if (a.link) descParts.push('Link: ' + a.link);
+
+    const startDate = toIcsDate(a.startDate);
+    // End date for multi-day all-day events must be day AFTER last day (exclusive)
+    let endDate = startDate;
+    if (a.endDate && a.endDate !== a.startDate) {
+      const end = new Date(a.endDate + 'T12:00:00');
+      end.setDate(end.getDate() + 1);
+      endDate = end.toISOString().slice(0, 10).replace(/-/g, '');
+    } else {
+      // Single day — end is next day
+      const end = new Date(a.startDate + 'T12:00:00');
+      end.setDate(end.getDate() + 1);
+      endDate = end.toISOString().slice(0, 10).replace(/-/g, '');
+    }
+
+    lines.push('BEGIN:VEVENT');
+    lines.push(foldIcsLine('UID:' + a.id + '@summer-planner-2026'));
+    lines.push('DTSTAMP:' + now);
+    lines.push('DTSTART;VALUE=DATE:' + startDate);
+    lines.push('DTEND;VALUE=DATE:' + endDate);
+    lines.push(foldIcsLine('SUMMARY:' + icsEscape(a.title)));
+    if (a.location) lines.push(foldIcsLine('LOCATION:' + icsEscape(a.location)));
+    if (descParts.length) lines.push(foldIcsLine('DESCRIPTION:' + icsEscape(descParts.join('\n'))));
+    lines.push('END:VEVENT');
+  });
+
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+function downloadIcs() {
+  if (exportChecked.size === 0) {
+    showToast('Select at least one event first', 'error');
+    return;
+  }
+  const ics = buildIcs();
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'summer-2026.ics';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  closeExportModal();
+  showToast('Calendar downloaded ✓', 'ok');
+}
+
 // ─── XSS safety ──────────────────────────────────────────────────
 function esc(s){
   if(!s)return'';
@@ -1196,10 +1475,11 @@ async function submitGate() {
       btn.textContent = 'Enter'; btn.disabled = false;
       return;
     }
-    // Password accepted — store in sessionStorage and proceed
+    // Password accepted — hide gate immediately, show login shell, then boot
     sessionStorage.setItem(SESSION_PASS_KEY, pw);
     document.getElementById('gate-screen').style.display = 'none';
     document.getElementById('gate-error').classList.remove('show');
+    document.getElementById('login-screen').style.display = 'flex';
     boot();
   } catch(e) {
     document.getElementById('gate-error').textContent = 'Could not reach server — check connection';
@@ -1217,6 +1497,7 @@ async function submitGate() {
       const r = await fetch(API, { headers: { 'Authorization': 'Bearer ' + stored } });
       if (r.ok) {
         document.getElementById('gate-screen').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'flex';
         boot();
         return;
       }
