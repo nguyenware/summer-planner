@@ -65,7 +65,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .cal-cell.today { border-color: var(--sun); background: #FFFDF5; }
 .cal-date { font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
 .cal-cell.today .cal-date { color: var(--sun); }
-.event-chip { font-size: 10px; padding: 2px 5px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.4; max-width: 100%; display: block; }
+.event-chip { font-size: 10px; padding: 2px 5px; border-radius: 5px; margin-bottom: 2px; white-space: normal; word-break: break-word; cursor: pointer; line-height: 1.4; max-width: 100%; display: block; }
 .more-chip { font-size: 10px; color: var(--muted); padding: 1px 4px; }
 
 /* List */
@@ -114,6 +114,23 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .user-select-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .user-chip { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; font-size: 13px; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
 .user-chip.selected { border-color: var(--ink); color: var(--ink); background: rgba(26,26,46,0.04); }
+
+/* Kid multi-select */
+.kid-select { display: flex; flex-wrap: wrap; gap: 6px; }
+.kid-chip { font-size: 13px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.12s; user-select: none; }
+.kid-chip.selected { border-color: #1D9E75; color: #0F6E56; background: #E1F5EE; }
+.kid-chip-empty { font-size: 13px; color: var(--muted); font-style: italic; }
+
+/* Kids roster in people modal */
+.pm-kids-roster { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pm-kid-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #FAFAF7; border-radius: 8px; border: 1px solid var(--border); }
+.pm-kid-name { flex: 1; font-size: 13px; font-weight: 500; }
+.pm-kid-remove { font-size: 11px; color: #CC3333; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 2px 6px; border-radius: 4px; }
+.pm-kid-remove:hover { background: #FCEBEB; }
+.pm-add-kid-row { display: flex; gap: 8px; margin-top: 8px; }
+.pm-add-kid-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--ink); background: white; outline: none; }
+.pm-add-kid-row input:focus { border-color: var(--sun); }
+.pm-add-kid-btn { padding: 7px 14px; background: var(--ink); color: white; border: none; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap; }
 
 /* Detail modal */
 .detail-header { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 1.25rem; }
@@ -288,15 +305,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
     <div class="add-person-inline">
       <h3 id="person-form-heading">Add someone new</h3>
       <input type="hidden" id="pm-editing-id">
-      <div class="form-2col">
-        <div class="form-row" style="margin:0">
-          <label>Name</label>
-          <input id="pm-name" placeholder="e.g. Sarah">
-        </div>
-        <div class="form-row" style="margin:0">
-          <label>Kids' names</label>
-          <input id="pm-kids" placeholder="e.g. Mia, Leo">
-        </div>
+      <div class="form-row">
+        <label>Name</label>
+        <input id="pm-name" placeholder="e.g. Sarah">
+      </div>
+      <div class="form-row" style="margin:0">
+          <label>Kids</label>
+          <div class="pm-kids-roster" id="pm-kids-roster"></div>
+          <div class="pm-add-kid-row">
+            <input id="pm-kid-input" placeholder="Add a kid's name…" onkeydown="if(event.key==='Enter'){event.preventDefault();addKidToForm();}">
+            <button class="pm-add-kid-btn" onclick="addKidToForm()">Add</button>
+          </div>
       </div>
       <div class="form-row" style="margin-top:12px">
         <label>Color</label>
@@ -367,7 +386,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
     </div>
     <div class="form-row">
       <label>Kids attending</label>
-      <input id="f-kids" placeholder="e.g. Isaac, Calvin — or leave blank for all">
+      <div class="kid-select" id="f-kids-select"></div>
     </div>
     <div class="form-row">
       <label>Notes</label>
@@ -417,7 +436,7 @@ const CAT = {
 
 // ─── Seed data ───────────────────────────────────────────────────
 // Only written to KV if users array is empty (first ever load).
-const SEED_USER = { id:'user-tim', name:'Tim', kids:'Isaac', colorIdx:0 };
+const SEED_USER = { id:'user-tim', name:'Tim', kids:['Isaac'], colorIdx:0 };
 const SEED_ACTIVITIES = [
   {
     id:'camp-001', title:'CWK: Full-Day Minecraft Modding & Outdoor STEAM',
@@ -425,7 +444,7 @@ const SEED_ACTIVITIES = [
     time:'9 AM – 4 PM', category:'camp',
     location:'Frances Anderson Center, Edmonds',
     cost:684, link:'https://anc.apm.activecommunities.com/edmondsparksandrec/activity/search/detail/9959?onlineSiteId=0&from_original_cui=true&locale=en-US',
-    kids:'Isaac', notes:'Non-resident fee included ($595 + $89). Minecraft modding + outdoor STEAM.',
+    kids:['Isaac'], notes:'Non-resident fee included ($595 + $89). Minecraft modding + outdoor STEAM.',
     userId:'user-tim', createdAt:new Date().toISOString(),
   },
   {
@@ -434,7 +453,7 @@ const SEED_ACTIVITIES = [
     time:'9 AM – 2 PM (Fri 7:30 AM – 4:30 PM)', category:'camp',
     location:'Edgeworks Climbing',
     cost:695, link:'https://portal.edgeworksclimbing.com/seattle/programs/adventure-rock-1?course=Q291cnNlOjFmNThlYzM3Y2I2MWIzNTUwYWM5YjUyODhhZmFjZWMy&date=2026-06-22',
-    kids:'Isaac, Max, Luke', notes:'With Max and Luke. Friday has early start (7:30 AM) and late end (4:30 PM) — plan accordingly.',
+    kids:['Isaac','Max','Luke'], notes:'With Max and Luke. Friday has early start (7:30 AM) and late end (4:30 PM) — plan accordingly.',
     userId:'user-tim', createdAt:new Date().toISOString(),
   },
   {
@@ -443,7 +462,7 @@ const SEED_ACTIVITIES = [
     time:'1:00 – 4:00 PM', category:'camp',
     location:'Spartan Gymnastics Room',
     cost:230, link:'https://anc.apm.activecommunities.com/shorelinewa/activity/search/detail/4503?onlineSiteId=0&from_original_cui=true',
-    kids:'Isaac', notes:'Afternoon half-day — morning is free.',
+    kids:['Isaac'], notes:'Afternoon half-day — morning is free.',
     userId:'user-tim', createdAt:new Date().toISOString(),
   },
   {
@@ -452,7 +471,7 @@ const SEED_ACTIVITIES = [
     time:'9 AM – 3 PM', category:'sport',
     location:'Shoreline Park Field B',
     cost:263, link:'https://anc.apm.activecommunities.com/shorelinewa/activity/search/detail/4468?onlineSiteId=0&from_original_cui=true',
-    kids:'Isaac, Calvin', notes:'With Calvin.',
+    kids:['Isaac','Calvin'], notes:'With Calvin.',
     userId:'user-tim', createdAt:new Date().toISOString(),
   },
   {
@@ -461,7 +480,7 @@ const SEED_ACTIVITIES = [
     time:'7:30 AM – 3:30 PM', category:'camp',
     location:'Meridian Park Elementary',
     cost:260, link:null,
-    kids:'Isaac, Max, Luke, Calvin', notes:'With Max, Luke, and Calvin.',
+    kids:['Isaac','Max','Luke','Calvin'], notes:'With Max, Luke, and Calvin.',
     userId:'user-tim', createdAt:new Date().toISOString(),
   },
   {
@@ -470,10 +489,25 @@ const SEED_ACTIVITIES = [
     time:'9:00 AM – 12:00 PM', category:'camp',
     location:'Spartan Gymnastics Room',
     cost:307, link:'https://anc.apm.activecommunities.com/shorelinewa/activity/search/detail/4512?onlineSiteId=0&from_original_cui=true',
-    kids:'Isaac', notes:'Morning half-day camp.',
+    kids:['Isaac'], notes:'Morning half-day camp.',
     userId:'user-tim', createdAt:new Date().toISOString(),
   },
 ];
+
+// ─── Global kids pool ─────────────────────────────────────────────
+// Kids are stored as arrays on each user object.
+// getGlobalKids() returns a deduped sorted list across all users.
+function getGlobalKids() {
+  const seen = new Set();
+  const kids = [];
+  state.users.forEach(u => {
+    (u.kids || []).forEach(k => {
+      const name = k.trim();
+      if (name && !seen.has(name)) { seen.add(name); kids.push(name); }
+    });
+  });
+  return kids.sort();
+}
 
 // ─── State ───────────────────────────────────────────────────────
 let state = { users:[], activities:[] };
@@ -613,7 +647,8 @@ function renderLogin() {
 async function addUser() {
   const name = document.getElementById('new-name').value.trim();
   if (!name) { document.getElementById('new-name').focus(); return; }
-  const kids = document.getElementById('new-kids').value.trim();
+  const kidsRaw = document.getElementById('new-kids').value.trim();
+  const kids = kidsRaw ? kidsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
   const id = 'user-'+Date.now();
   state.users.push({ id, name, kids, colorIdx:selectedColorIdx });
   scheduleSave();
@@ -645,7 +680,8 @@ function showApp() {
   av.style.background = c.avatarBg; av.style.color = c.avatarText;
   av.textContent = initials(u.name);
   document.getElementById('header-name').textContent = u.name;
-  document.getElementById('hero-sub').textContent = u.kids ? `${u.kids} · Shared family planner` : 'Shared family planner';
+  const kidsLabel = u.kids && u.kids.length ? (Array.isArray(u.kids)?u.kids.join(', '):u.kids) : null;
+  document.getElementById('hero-sub').textContent = kidsLabel ? `${kidsLabel} · Shared family planner` : 'Shared family planner';
   renderStats(); renderFilters(); renderCalendar(); renderList(); renderPeople();
 }
 
@@ -781,7 +817,7 @@ function renderList() {
           <div class="list-tags">
             <span class="tag" style="background:${cat.bg};color:${cat.text}">${cat.label}</span>
             ${u?`<span class="tag" style="background:${c.light};color:${c.text}">${esc(u.name)}</span>`:''}
-            ${a.kids?`<span class="tag" style="background:#F1EFE8;color:#5F5E5A">👦 ${esc(a.kids)}</span>`:''}
+            ${(Array.isArray(a.kids)?a.kids:(a.kids?a.kids.split(',').map(s=>s.trim()).filter(Boolean):[])).map(k=>`<span class="tag" style="background:#F1EFE8;color:#5F5E5A">👦 ${esc(k)}</span>`).join('')}
             ${cost?`<span class="cost-badge">${cost}</span>`:''}
             ${a.link?`<a class="link-btn" href="${esc(a.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ Registration</a>`:''}
           </div>
@@ -813,7 +849,7 @@ function renderPeople() {
         <div class="person-avatar" style="background:${c.avatarBg};color:${c.avatarText};width:44px;height:44px">${initials(u.name)}</div>
         <div>
           <div class="person-name">${esc(u.name)}${u.id===currentUserId?' <span style="font-size:11px;color:var(--muted)">(you)</span>':''}</div>
-          <div class="person-sub">${u.kids?esc(u.kids):'Family member'} · ${myActs.length} ${myActs.length===1?'activity':'activities'}</div>
+          <div class="person-sub">${(u.kids&&u.kids.length)?esc(Array.isArray(u.kids)?u.kids.join(', '):u.kids):'Family member'} · ${myActs.length} ${myActs.length===1?'activity':'activities'}</div>
         </div>
       </div>
       <div class="person-activity-list">${actList||'<span>No activities yet</span>'}</div>
@@ -828,7 +864,8 @@ function renderPeople() {
 function openAddModal() {
   editingId=null;
   document.getElementById('modal-h2').textContent='Add activity';
-  ['f-title','f-end','f-time','f-notes','f-kids','f-location','f-link'].forEach(id=>document.getElementById(id).value='');
+  ['f-title','f-end','f-time','f-notes','f-location','f-link'].forEach(id=>document.getElementById(id).value='');
+  buildKidsSelect([]);
   document.getElementById('f-cost').value='';
   document.getElementById('f-cat').value='camp';
   if(!document.getElementById('f-start').value) document.getElementById('f-start').value=new Date().toISOString().slice(0,10);
@@ -855,6 +892,7 @@ function saveActivity(){
   const selChip=document.getElementById('f-user-select').querySelector('.selected');
   const userId=selChip?selChip.dataset.uid:currentUserId;
   const costRaw=document.getElementById('f-cost').value;
+  const selectedKids=[...document.getElementById('f-kids-select').querySelectorAll('.kid-chip.selected')].map(c=>c.dataset.kid);
   const act={
     id:editingId||'act-'+Date.now(),
     title,
@@ -865,7 +903,7 @@ function saveActivity(){
     location:document.getElementById('f-location').value.trim(),
     link:document.getElementById('f-link').value.trim()||null,
     cost:costRaw!==''?Number(costRaw):null,
-    kids:document.getElementById('f-kids').value.trim(),
+    kids:selectedKids,
     notes:document.getElementById('f-notes').value.trim(),
     userId, createdAt:new Date().toISOString(),
   };
@@ -893,7 +931,7 @@ function openDetail(a){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
       <span class="tag" style="background:${cat.bg};color:${cat.text};padding:4px 12px;border-radius:999px">${cat.label}</span>
       ${u?`<span class="tag" style="background:${c.light};color:${c.text};padding:4px 12px;border-radius:999px">${esc(u.name)}</span>`:''}
-      ${a.kids?`<span class="tag" style="background:#F1EFE8;color:#5F5E5A;padding:4px 12px;border-radius:999px">👦 ${esc(a.kids)}</span>`:''}
+      ${(Array.isArray(a.kids)?a.kids:(a.kids?a.kids.split(',').map(s=>s.trim()).filter(Boolean):[])).map(k=>`<span class="tag" style="background:#F1EFE8;color:#5F5E5A;padding:4px 12px;border-radius:999px">👦 ${esc(k)}</span>`).join('')}
       ${cost?`<span class="cost-badge" style="padding:4px 12px">${cost}</span>`:''}
     </div>
     ${a.location?`<div class="detail-section"><div class="detail-label">Location</div><div class="detail-value">📍 ${esc(a.location)}</div></div>`:''}
@@ -917,6 +955,28 @@ function deleteActivity(id){
   renderStats();renderCalendar();renderList();renderPeople();
 }
 
+// ─── Kid multi-select builder ─────────────────────────────────────
+function buildKidsSelect(selectedKids=[]) {
+  const container = document.getElementById('f-kids-select');
+  container.innerHTML = '';
+  const pool = getGlobalKids();
+  if (!pool.length) {
+    const emp = document.createElement('span');
+    emp.className = 'kid-chip-empty';
+    emp.textContent = 'No kids added yet — add them in the People tab first';
+    container.appendChild(emp);
+    return;
+  }
+  pool.forEach(name => {
+    const chip = document.createElement('div');
+    chip.className = 'kid-chip' + (selectedKids.includes(name) ? ' selected' : '');
+    chip.dataset.kid = name;
+    chip.textContent = name;
+    chip.onclick = () => chip.classList.toggle('selected');
+    container.appendChild(chip);
+  });
+}
+
 // ─── Edit activity ───────────────────────────────────────────────
 function editActivity(id){
   const a=state.activities.find(x=>x.id===id);
@@ -932,7 +992,7 @@ function editActivity(id){
   document.getElementById('f-location').value=a.location||'';
   document.getElementById('f-link').value=a.link||'';
   document.getElementById('f-cost').value=a.cost!=null?a.cost:'';
-  document.getElementById('f-kids').value=a.kids||'';
+  buildKidsSelect(Array.isArray(a.kids)?a.kids:(a.kids?a.kids.split(',').map(s=>s.trim()).filter(Boolean):[]));
   document.getElementById('f-notes').value=a.notes||'';
   buildUserSelect(a.userId);
   document.getElementById('add-modal').style.display='flex';
@@ -965,7 +1025,7 @@ function renderPeopleRoster(){
       <div class="person-avatar" style="background:${c.avatarBg};color:${c.avatarText};width:36px;height:36px;font-size:13px;flex-shrink:0">${initials(u.name)}</div>
       <div class="roster-info">
         <div class="roster-name">${esc(u.name)}${u.id===currentUserId?' <span style="font-size:11px;color:var(--muted)">(you)</span>':''}</div>
-        <div class="roster-kids">${u.kids?esc(u.kids):'No kids listed'}</div>
+        <div class="roster-kids">${(u.kids&&u.kids.length)?esc(Array.isArray(u.kids)?u.kids.join(', '):u.kids):'No kids listed'}</div>
       </div>
       <button class="roster-edit-btn" onclick="startEditPerson('${u.id}')">Edit</button>
       <button class="roster-remove-btn" onclick="removePerson('${u.id}')">✕</button>
@@ -984,36 +1044,69 @@ function buildPmSwatches(){
     sw.appendChild(s);
   });
 }
+// pmKids: working array of kid names for the form
+let pmKids = [];
+
 function resetPersonForm(){
   document.getElementById('pm-editing-id').value='';
   document.getElementById('pm-name').value='';
-  document.getElementById('pm-kids').value='';
+  document.getElementById('pm-kid-input').value='';
+  pmKids=[];
   document.getElementById('person-form-heading').textContent='Add someone new';
   document.getElementById('pm-cancel-edit').style.display='none';
   pmColorIdx=0;
   buildPmSwatches();
+  renderPmKidsRoster();
 }
 function startEditPerson(id){
   const u=state.users.find(x=>x.id===id);
   if(!u)return;
   document.getElementById('pm-editing-id').value=u.id;
   document.getElementById('pm-name').value=u.name;
-  document.getElementById('pm-kids').value=u.kids||'';
+  document.getElementById('pm-kid-input').value='';
+  pmKids=Array.isArray(u.kids)?[...u.kids]:(u.kids?u.kids.split(',').map(s=>s.trim()).filter(Boolean):[]);
   pmColorIdx=u.colorIdx||0;
   buildPmSwatches();
+  renderPmKidsRoster();
   document.getElementById('person-form-heading').textContent='Edit person';
   document.getElementById('pm-cancel-edit').style.display='';
   document.getElementById('pm-name').focus();
 }
+function addKidToForm(){
+  const input=document.getElementById('pm-kid-input');
+  const name=input.value.trim();
+  if(!name)return;
+  if(!pmKids.includes(name)){pmKids.push(name);}
+  input.value='';
+  renderPmKidsRoster();
+  input.focus();
+}
+function removeKidFromForm(name){
+  pmKids=pmKids.filter(k=>k!==name);
+  renderPmKidsRoster();
+}
+function renderPmKidsRoster(){
+  const roster=document.getElementById('pm-kids-roster');
+  roster.innerHTML='';
+  if(!pmKids.length){
+    roster.innerHTML='<span style="font-size:12px;color:var(--muted);font-style:italic">No kids added yet</span>';
+    return;
+  }
+  pmKids.forEach(name=>{
+    const row=document.createElement('div');
+    row.className='pm-kid-row';
+    row.innerHTML=`<span class="pm-kid-name">👦 ${esc(name)}</span><button class="pm-kid-remove" onclick="removeKidFromForm('${esc(name)}')">Remove</button>`;
+    roster.appendChild(row);
+  });
+}
 function savePersonForm(){
   const name=document.getElementById('pm-name').value.trim();
   if(!name){document.getElementById('pm-name').focus();return;}
-  const kids=document.getElementById('pm-kids').value.trim();
   const editId=document.getElementById('pm-editing-id').value;
   if(editId){
-    state.users=state.users.map(u=>u.id===editId?{...u,name,kids,colorIdx:pmColorIdx}:u);
+    state.users=state.users.map(u=>u.id===editId?{...u,name,kids:pmKids,colorIdx:pmColorIdx}:u);
   } else {
-    state.users.push({id:'user-'+Date.now(),name,kids,colorIdx:pmColorIdx});
+    state.users.push({id:'user-'+Date.now(),name,kids:pmKids,colorIdx:pmColorIdx});
   }
   scheduleSave();
   resetPersonForm();
