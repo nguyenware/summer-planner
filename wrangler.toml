@@ -1,0 +1,16 @@
+name = "summer-planner"
+pages_build_output_dir = "."   # static files are at repo root
+
+# ── KV Namespace binding ───────────────────────────────────────────
+# After running `wrangler kv namespace create PLANNER_KV` you'll get an id.
+# Paste it below under [[kv_namespaces]] id.
+# For local dev you also need the preview_id from
+# `wrangler kv namespace create PLANNER_KV --preview`
+
+[[kv_namespaces]]
+binding = "PLANNER_KV"
+id = "REPLACE_WITH_YOUR_KV_ID"
+preview_id = "REPLACE_WITH_YOUR_KV_PREVIEW_ID"
+
+# ── Compatibility ──────────────────────────────────────────────────
+compatibility_date = "2024-01-01"
