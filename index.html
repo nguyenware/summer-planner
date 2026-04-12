@@ -200,16 +200,43 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
   .form-2col, .form-3col { grid-template-columns: 1fr; }
   .cal-cell { min-height: 64px; }
 }
+/* Password gate */
+.gate-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--page-bg); padding: 2rem; }
+.gate-card { background: white; border-radius: 24px; padding: 2.5rem; width: min(380px,100%); box-shadow: 0 8px 40px rgba(0,0,0,0.08); text-align: center; }
+.gate-icon { font-size: 40px; margin-bottom: 16px; }
+.gate-card h1 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; margin-bottom: 6px; }
+.gate-card p { font-size: 14px; color: var(--muted); margin-bottom: 1.5rem; }
+.gate-input-row { display: flex; gap: 8px; }
+.gate-input-row input { flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--ink); background: white; outline: none; transition: border-color 0.12s; }
+.gate-input-row input:focus { border-color: var(--sun); box-shadow: 0 0 0 3px rgba(245,166,35,0.12); }
+.gate-btn { padding: 10px 18px; background: var(--ink); color: white; border: none; border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.gate-btn:hover { opacity: 0.85; }
+.gate-error { font-size: 13px; color: #A32D2D; margin-top: 10px; display: none; }
+.gate-error.show { display: block; }
 </style>
 </head>
 <body>
+
+<!-- Password gate -->
+<div id="gate-screen" class="gate-screen">
+  <div class="gate-card">
+    <div class="gate-icon">🔒</div>
+    <h1>Summer Planner <em style="font-style:italic;color:var(--sun)">2026</em></h1>
+    <p>Enter the password to continue</p>
+    <div class="gate-input-row">
+      <input id="gate-input" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitGate()">
+      <button class="gate-btn" onclick="submitGate()">Enter</button>
+    </div>
+    <div class="gate-error" id="gate-error">Incorrect password — try again</div>
+  </div>
+</div>
 
 <div class="offline-banner" id="offline-banner">
   ⚠️ You're offline — changes will sync when you reconnect.
 </div>
 
 <!-- Login -->
-<div id="login-screen" class="login-screen">
+<div id="login-screen" class="login-screen" style="display:none">
   <div class="login-card">
     <div class="login-sun">☀️</div>
     <h1>Summer Planner <em style="font-style:italic;color:var(--sun)">2026</em></h1>
@@ -522,7 +549,10 @@ let saveTimer = null;
 
 // ─── API layer ───────────────────────────────────────────────────
 async function apiGet() {
-  const r = await fetch(API);
+  const r = await fetch(API, {
+    headers: { 'Authorization': 'Bearer ' + getStoredPass() }
+  });
+  if (r.status === 401) { sessionStorage.removeItem(SESSION_PASS_KEY); location.reload(); }
   if (!r.ok) throw new Error(`API error ${r.status}`);
   return r.json();
 }
@@ -530,9 +560,13 @@ async function apiGet() {
 async function apiPost(data) {
   const r = await fetch(API, {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + getStoredPass(),
+    },
     body: JSON.stringify(data),
   });
+  if (r.status === 401) { sessionStorage.removeItem(SESSION_PASS_KEY); location.reload(); }
   if (!r.ok) throw new Error(`API error ${r.status}`);
   return r.json();
 }
@@ -547,11 +581,13 @@ function showToast(msg, type='saving') {
   s.style.display = type==='saving' ? 'block' : 'none';
   m.textContent = msg;
   clearTimeout(toastTimer);
-  if (type !== 'saving') toastTimer = setTimeout(()=>t.classList.remove('show'), 2500);
+  // 'saving' stays until explicitly hidden; success hides after 1.5s; errors after 3s
+  if (type === 'ok') toastTimer = setTimeout(()=>t.classList.remove('show'), 1500);
+  if (type === 'error') toastTimer = setTimeout(()=>t.classList.remove('show'), 3000);
 }
 function hideToast() {
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>document.getElementById('toast').classList.remove('show'), 800);
+  document.getElementById('toast').classList.remove('show');
 }
 
 // ─── Persist ─────────────────────────────────────────────────────
@@ -702,7 +738,6 @@ function fmtCost(c) {
 function renderStats() {
   const now = new Date();
   const upcoming = state.activities.filter(a=>new Date((a.endDate||a.startDate)+'T23:59:59')>=now).length;
-  const totalCost = state.activities.reduce((s,a)=>s+(Number(a.cost)||0),0);
   const weeks = new Set(state.activities.filter(a=>{
     const m=new Date(a.startDate+'T12:00:00').getMonth();
     return m>=5&&m<=7;
@@ -715,7 +750,6 @@ function renderStats() {
     <div class="stat-chip"><strong>${state.activities.length}</strong> activities</div>
     <div class="stat-chip"><strong>${upcoming}</strong> upcoming</div>
     <div class="stat-chip"><strong>${weeks}</strong> weeks covered</div>
-    ${totalCost>0?`<div class="stat-chip"><strong>${fmtCost(totalCost)}</strong> total invested</div>`:''}
     <div class="stat-chip"><strong>${state.users.length}</strong> ${state.users.length===1?'family':'families'}</div>
   `;
 }
@@ -940,11 +974,12 @@ function openDetail(a){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1rem">
       <button class="delete-link" onclick="deleteActivity('${a.id}')">Remove activity</button>
       <div style="display:flex;gap:8px">
-        <button class="btn-edit" onclick="editActivity('${a.id}')">Edit</button>
+        <button class="btn-edit" id="detail-edit-btn">Edit</button>
         <button class="btn-cancel" onclick="document.getElementById('detail-modal').style.display='none'">Close</button>
       </div>
     </div>
   `;
+  document.getElementById('detail-edit-btn').onclick = () => editActivity(a.id);
   document.getElementById('detail-modal').style.display='flex';
 }
 function deleteActivity(id){
@@ -1137,7 +1172,62 @@ function esc(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-boot();
+// ─── Password gate ────────────────────────────────────────────────
+const SESSION_PASS_KEY = 'sp-pass-2026';
+
+function getStoredPass() {
+  return sessionStorage.getItem(SESSION_PASS_KEY) || '';
+}
+
+async function submitGate() {
+  const input = document.getElementById('gate-input');
+  const pw = input.value.trim();
+  if (!pw) { input.focus(); return; }
+
+  // Test the password against the API before storing
+  const btn = document.querySelector('.gate-btn');
+  btn.textContent = '…'; btn.disabled = true;
+
+  try {
+    const r = await fetch(API, { headers: { 'Authorization': 'Bearer ' + pw } });
+    if (r.status === 401) {
+      document.getElementById('gate-error').classList.add('show');
+      input.value = ''; input.focus();
+      btn.textContent = 'Enter'; btn.disabled = false;
+      return;
+    }
+    // Password accepted — store in sessionStorage and proceed
+    sessionStorage.setItem(SESSION_PASS_KEY, pw);
+    document.getElementById('gate-screen').style.display = 'none';
+    document.getElementById('gate-error').classList.remove('show');
+    boot();
+  } catch(e) {
+    document.getElementById('gate-error').textContent = 'Could not reach server — check connection';
+    document.getElementById('gate-error').classList.add('show');
+    btn.textContent = 'Enter'; btn.disabled = false;
+  }
+}
+
+// ─── Boot / Gate ──────────────────────────────────────────────────
+(async function init() {
+  const stored = getStoredPass();
+  if (stored) {
+    // Validate stored pass is still good
+    try {
+      const r = await fetch(API, { headers: { 'Authorization': 'Bearer ' + stored } });
+      if (r.ok) {
+        document.getElementById('gate-screen').style.display = 'none';
+        boot();
+        return;
+      }
+    } catch(e) {}
+    // Stored pass no longer valid — clear it and show gate
+    sessionStorage.removeItem(SESSION_PASS_KEY);
+  }
+  // Show gate
+  document.getElementById('gate-screen').style.display = 'flex';
+  setTimeout(() => document.getElementById('gate-input').focus(), 50);
+})();
 </script>
 </body>
 </html>
