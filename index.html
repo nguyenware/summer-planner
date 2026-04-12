@@ -56,16 +56,16 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .add-btn:hover { opacity: 0.88; }
 
 /* Calendar */
-.cal-header-row { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-bottom: 4px; }
+.cal-header-row { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; margin-bottom: 4px; }
 .cal-day-name { font-size: 11px; color: var(--muted); text-align: center; padding: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
-.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; }
 .cal-cell { min-height: 88px; background: white; border: 1px solid var(--border); border-radius: 10px; padding: 6px; cursor: pointer; transition: border-color 0.12s; }
 .cal-cell:hover { border-color: rgba(26,26,46,0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .cal-cell.empty { background: rgba(26,26,46,0.02); cursor: default; pointer-events: none; }
 .cal-cell.today { border-color: var(--sun); background: #FFFDF5; }
 .cal-date { font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
 .cal-cell.today .cal-date { color: var(--sun); }
-.event-chip { font-size: 10px; padding: 2px 5px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.4; }
+.event-chip { font-size: 10px; padding: 2px 5px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.4; max-width: 100%; display: block; }
 .more-chip { font-size: 10px; color: var(--muted); padding: 1px 4px; }
 
 /* List */
@@ -148,8 +148,25 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .join-btn { width: 100%; padding: 11px; background: var(--ink); color: white; border: none; border-radius: 12px; font-size: 14px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; margin-top: 12px; }
 .join-btn:hover { opacity: 0.85; }
 
+/* Edit button in detail */
+.btn-edit { padding: 9px 18px; border: 1px solid var(--border); border-radius: 999px; background: white; font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; color: var(--ink); }
+.btn-edit:hover { background: #f5f5f5; }
+
+/* Manage people modal */
+.people-roster { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; }
+.roster-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: white; }
+.roster-info { flex: 1; }
+.roster-name { font-size: 14px; font-weight: 500; }
+.roster-kids { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.roster-edit-btn { font-size: 12px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: none; cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif; }
+.roster-edit-btn:hover { border-color: var(--ink); color: var(--ink); }
+.roster-remove-btn { font-size: 12px; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; background: none; cursor: pointer; color: #CC3333; font-family: 'DM Sans', sans-serif; }
+.roster-remove-btn:hover { border-color: #CC3333; }
+.add-person-inline { border-top: 1px solid var(--border); padding-top: 1.25rem; margin-top: 0.25rem; }
+.add-person-inline h3 { font-size: 13px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
 /* Toast */
-.toast { position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: white; font-size: 12px; padding: 8px 16px; border-radius: 999px; opacity: 0; transition: opacity 0.25s; z-index: 300; pointer-events: none; display: flex; align-items: center; gap: 8px; }
+ position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: white; font-size: 12px; padding: 8px 16px; border-radius: 999px; opacity: 0; transition: opacity 0.25s; z-index: 300; pointer-events: none; display: flex; align-items: center; gap: 8px; }
 .toast.show { opacity: 1; }
 .toast.error { background: #A32D2D; }
 .spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
@@ -255,7 +272,41 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
     </div>
 
     <div id="tab-people" style="display:none">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
+        <button class="add-btn" onclick="openPeopleModal()">+ Add / manage people</button>
+      </div>
       <div class="people-grid" id="people-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Manage People Modal -->
+<div id="people-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePeopleModal()">
+  <div class="modal">
+    <h2>People</h2>
+    <div class="people-roster" id="people-roster"></div>
+    <div class="add-person-inline">
+      <h3 id="person-form-heading">Add someone new</h3>
+      <input type="hidden" id="pm-editing-id">
+      <div class="form-2col">
+        <div class="form-row" style="margin:0">
+          <label>Name</label>
+          <input id="pm-name" placeholder="e.g. Sarah">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label>Kids' names</label>
+          <input id="pm-kids" placeholder="e.g. Mia, Leo">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:12px">
+        <label>Color</label>
+        <div class="color-swatches" id="pm-swatches"></div>
+      </div>
+      <div class="modal-actions" style="margin-top:1rem">
+        <button class="btn-cancel" id="pm-cancel-edit" style="display:none" onclick="resetPersonForm()">Cancel edit</button>
+        <button class="btn-cancel" onclick="closePeopleModal()">Done</button>
+        <button class="btn-save" onclick="savePersonForm()">Save person</button>
+      </div>
     </div>
   </div>
 </div>
@@ -850,7 +901,10 @@ function openDetail(a){
     ${a.notes?`<div class="detail-section"><div class="detail-label">Notes</div><div class="detail-notes">${esc(a.notes)}</div></div>`:''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1rem">
       <button class="delete-link" onclick="deleteActivity('${a.id}')">Remove activity</button>
-      <button class="btn-cancel" onclick="document.getElementById('detail-modal').style.display='none'">Close</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-edit" onclick="editActivity('${a.id}')">Edit</button>
+        <button class="btn-cancel" onclick="document.getElementById('detail-modal').style.display='none'">Close</button>
+      </div>
     </div>
   `;
   document.getElementById('detail-modal').style.display='flex';
@@ -861,6 +915,127 @@ function deleteActivity(id){
   scheduleSave();
   document.getElementById('detail-modal').style.display='none';
   renderStats();renderCalendar();renderList();renderPeople();
+}
+
+// ─── Edit activity ───────────────────────────────────────────────
+function editActivity(id){
+  const a=state.activities.find(x=>x.id===id);
+  if(!a)return;
+  document.getElementById('detail-modal').style.display='none';
+  editingId=a.id;
+  document.getElementById('modal-h2').textContent='Edit activity';
+  document.getElementById('f-title').value=a.title||'';
+  document.getElementById('f-start').value=a.startDate||'';
+  document.getElementById('f-end').value=a.endDate||'';
+  document.getElementById('f-time').value=a.time||'';
+  document.getElementById('f-cat').value=a.category||'camp';
+  document.getElementById('f-location').value=a.location||'';
+  document.getElementById('f-link').value=a.link||'';
+  document.getElementById('f-cost').value=a.cost!=null?a.cost:'';
+  document.getElementById('f-kids').value=a.kids||'';
+  document.getElementById('f-notes').value=a.notes||'';
+  buildUserSelect(a.userId);
+  document.getElementById('add-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('f-title').focus(),50);
+}
+
+// ─── People modal ─────────────────────────────────────────────────
+let pmColorIdx=0;
+
+function openPeopleModal(){
+  resetPersonForm();
+  renderPeopleRoster();
+  document.getElementById('people-modal').style.display='flex';
+}
+function closePeopleModal(){
+  document.getElementById('people-modal').style.display='none';
+}
+function renderPeopleRoster(){
+  const roster=document.getElementById('people-roster');
+  roster.innerHTML='';
+  if(!state.users.length){
+    roster.innerHTML='<p style="font-size:13px;color:var(--muted)">No people yet — add the first one below.</p>';
+    return;
+  }
+  state.users.forEach(u=>{
+    const c=COLORS[u.colorIdx%COLORS.length];
+    const row=document.createElement('div');
+    row.className='roster-row';
+    row.innerHTML=`
+      <div class="person-avatar" style="background:${c.avatarBg};color:${c.avatarText};width:36px;height:36px;font-size:13px;flex-shrink:0">${initials(u.name)}</div>
+      <div class="roster-info">
+        <div class="roster-name">${esc(u.name)}${u.id===currentUserId?' <span style="font-size:11px;color:var(--muted)">(you)</span>':''}</div>
+        <div class="roster-kids">${u.kids?esc(u.kids):'No kids listed'}</div>
+      </div>
+      <button class="roster-edit-btn" onclick="startEditPerson('${u.id}')">Edit</button>
+      <button class="roster-remove-btn" onclick="removePerson('${u.id}')">✕</button>
+    `;
+    roster.appendChild(row);
+  });
+}
+function buildPmSwatches(){
+  const sw=document.getElementById('pm-swatches');
+  sw.innerHTML='';
+  COLORS.forEach((c,i)=>{
+    const s=document.createElement('div');
+    s.className='color-swatch'+(i===pmColorIdx?' selected':'');
+    s.style.background=c.swatch;
+    s.onclick=()=>{pmColorIdx=i;buildPmSwatches();};
+    sw.appendChild(s);
+  });
+}
+function resetPersonForm(){
+  document.getElementById('pm-editing-id').value='';
+  document.getElementById('pm-name').value='';
+  document.getElementById('pm-kids').value='';
+  document.getElementById('person-form-heading').textContent='Add someone new';
+  document.getElementById('pm-cancel-edit').style.display='none';
+  pmColorIdx=0;
+  buildPmSwatches();
+}
+function startEditPerson(id){
+  const u=state.users.find(x=>x.id===id);
+  if(!u)return;
+  document.getElementById('pm-editing-id').value=u.id;
+  document.getElementById('pm-name').value=u.name;
+  document.getElementById('pm-kids').value=u.kids||'';
+  pmColorIdx=u.colorIdx||0;
+  buildPmSwatches();
+  document.getElementById('person-form-heading').textContent='Edit person';
+  document.getElementById('pm-cancel-edit').style.display='';
+  document.getElementById('pm-name').focus();
+}
+function savePersonForm(){
+  const name=document.getElementById('pm-name').value.trim();
+  if(!name){document.getElementById('pm-name').focus();return;}
+  const kids=document.getElementById('pm-kids').value.trim();
+  const editId=document.getElementById('pm-editing-id').value;
+  if(editId){
+    state.users=state.users.map(u=>u.id===editId?{...u,name,kids,colorIdx:pmColorIdx}:u);
+  } else {
+    state.users.push({id:'user-'+Date.now(),name,kids,colorIdx:pmColorIdx});
+  }
+  scheduleSave();
+  resetPersonForm();
+  renderPeopleRoster();
+  renderStats();renderFilters();renderPeople();
+}
+function removePerson(id){
+  const u=state.users.find(x=>x.id===id);
+  if(!u)return;
+  const actCount=state.activities.filter(a=>a.userId===id).length;
+  const msg=actCount>0
+    ?`Remove ${u.name}? Their ${actCount} ${actCount===1?'activity':'activities'} will remain but be unassigned.`
+    :`Remove ${u.name} from the planner?`;
+  if(!confirm(msg))return;
+  state.users=state.users.filter(x=>x.id!==id);
+  if(currentUserId===id){
+    currentUserId=null;
+    localStorage.removeItem('sp-user-2026');
+  }
+  scheduleSave();
+  renderPeopleRoster();
+  renderStats();renderFilters();renderPeople();
 }
 
 // ─── XSS safety ──────────────────────────────────────────────────
