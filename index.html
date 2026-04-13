@@ -52,6 +52,27 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .filter-pills { display: flex; gap: 5px; flex-wrap: wrap; }
 .filter-pill { font-size: 12px; padding: 4px 11px; border: 1px solid var(--border); border-radius: 999px; background: white; cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
 .filter-pill.active { background: var(--ink); color: white; border-color: var(--ink); }
+
+/* Searchable filter dropdowns */
+.filter-dropdowns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filter-select-wrap { position: relative; }
+.filter-select-wrap select { display: none; }
+.filter-dd { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 12px; border: 1px solid var(--border); border-radius: 999px; background: white; cursor: pointer; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--ink); white-space: nowrap; min-width: 120px; justify-content: space-between; transition: border-color 0.12s; user-select: none; }
+.filter-dd:hover { border-color: rgba(26,26,46,0.25); }
+.filter-dd.active { border-color: var(--ink); background: var(--ink); color: white; }
+.filter-dd.active .filter-dd-arrow { color: rgba(255,255,255,0.6); }
+.filter-dd-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.filter-dd-arrow { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+.filter-dropdown-panel { position: absolute; top: calc(100% + 6px); left: 0; min-width: 200px; background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); z-index: 100; overflow: hidden; }
+.filter-dd-search { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.filter-dd-search input { flex: 1; border: none; outline: none; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--ink); background: transparent; }
+.filter-dd-options { max-height: 220px; overflow-y: auto; padding: 4px 0; }
+.filter-dd-option { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--ink); transition: background 0.1s; }
+.filter-dd-option:hover { background: var(--page-bg); }
+.filter-dd-option.selected { font-weight: 500; color: #0F6E56; }
+.filter-dd-option .opt-check { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+.filter-dd-option.selected .opt-check { background: #1D9E75; border-color: #1D9E75; color: white; }
+.filter-dd-empty { padding: 10px 12px; font-size: 12px; color: var(--muted); font-style: italic; }
 .add-btn { margin-left: auto; font-size: 13px; font-family: 'DM Sans', sans-serif; padding: 7px 16px; background: var(--sun); color: var(--ink); border: none; border-radius: 999px; cursor: pointer; font-weight: 500; }
 .add-btn:hover { opacity: 0.88; }
 
@@ -332,7 +353,20 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
           <span class="month-label" id="month-label"></span>
           <button class="month-btn" onclick="changeMonth(1)">›</button>
         </div>
-        <div class="filter-pills" id="cal-filters"></div>
+        <div class="filter-dropdowns">
+          <div class="filter-select-wrap" id="cal-kid-wrap">
+            <div class="filter-dd" id="cal-kid-dd" onclick="toggleFilterDD('cal-kid')">
+              <span class="filter-dd-label" id="cal-kid-label">All kids</span>
+              <span class="filter-dd-arrow">▾</span>
+            </div>
+          </div>
+          <div class="filter-select-wrap" id="cal-person-wrap">
+            <div class="filter-dd" id="cal-person-dd" onclick="toggleFilterDD('cal-person')">
+              <span class="filter-dd-label" id="cal-person-label">All families</span>
+              <span class="filter-dd-arrow">▾</span>
+            </div>
+          </div>
+        </div>
         <button class="add-btn" onclick="openAddModal()">+ Add activity</button>
       </div>
       <div class="cal-header-row">
@@ -618,7 +652,8 @@ let state = { users:[], activities:[] };
 let currentUserId = null;
 let curMonth = 5; // start on June
 let curYear = 2026;
-let calFilter = 'all';
+let calKidFilter = 'all';
+let calPersonFilter = 'all';
 let listFilter = 'all';
 let editingId = null;
 let selectedColorIdx = 0;
@@ -846,21 +881,127 @@ function setTab(t,el) {
 }
 
 // ─── Filters ─────────────────────────────────────────────────────
-function renderFilters() {
-  [['cal-filters',calFilter,setCalFilter],['list-filters',listFilter,setListFilter]].forEach(([fid,active,setter])=>{
-    const bar=document.getElementById(fid); bar.innerHTML='';
-    [{id:'all',name:'All'},...state.users.map(u=>({id:u.id,name:u.name}))].forEach(f=>{
-      const btn=document.createElement('button');
-      btn.className='filter-pill'+(active===f.id?' active':'');
-      btn.textContent=f.name;
-      btn.onclick=()=>setter(f.id,btn);
-      bar.appendChild(btn);
+// ─── Filter dropdowns ────────────────────────────────────────────
+let openFilterDD = null;
+
+function toggleFilterDD(id) {
+  // Close any open panel first
+  if (openFilterDD && openFilterDD !== id) closeFilterDD(openFilterDD);
+  const panel = document.getElementById('filter-panel-' + id);
+  if (panel) { closeFilterDD(id); return; }
+  openFilterDD = id;
+  buildFilterPanel(id);
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      const wrap = document.getElementById(id === 'cal-kid' ? 'cal-kid-wrap' : 'cal-person-wrap');
+      if (!wrap.contains(e.target)) { closeFilterDD(id); document.removeEventListener('click', handler); }
     });
+  }, 0);
+}
+
+function closeFilterDD(id) {
+  const panel = document.getElementById('filter-panel-' + id);
+  if (panel) panel.remove();
+  if (openFilterDD === id) openFilterDD = null;
+}
+
+function buildFilterPanel(id) {
+  const isKid = id === 'cal-kid';
+  const wrap = document.getElementById(isKid ? 'cal-kid-wrap' : 'cal-person-wrap');
+  const current = isKid ? calKidFilter : calPersonFilter;
+
+  const options = isKid
+    ? [{ id: 'all', label: 'All kids' }, ...getGlobalKids().map(k => ({ id: k, label: k }))]
+    : [{ id: 'all', label: 'All families' }, ...state.users.map(u => ({ id: u.id, label: u.name }))];
+
+  const panel = document.createElement('div');
+  panel.className = 'filter-dropdown-panel';
+  panel.id = 'filter-panel-' + id;
+
+  panel.innerHTML = `
+    <div class="filter-dd-search">
+      <span style="font-size:12px;color:var(--muted)">🔍</span>
+      <input id="filter-search-${id}" placeholder="Search…" autocomplete="off">
+    </div>
+    <div class="filter-dd-options" id="filter-opts-${id}"></div>
+  `;
+  wrap.appendChild(panel);
+
+  const searchInput = panel.querySelector('input');
+  const renderOpts = (query = '') => {
+    const opts = document.getElementById('filter-opts-' + id);
+    opts.innerHTML = '';
+    const filtered = options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()));
+    if (!filtered.length) {
+      opts.innerHTML = '<div class="filter-dd-empty">No matches</div>';
+      return;
+    }
+    filtered.forEach(o => {
+      const div = document.createElement('div');
+      div.className = 'filter-dd-option' + (o.id === current ? ' selected' : '');
+      div.innerHTML = `<div class="opt-check">${o.id === current ? '✓' : ''}</div>${esc(o.label)}`;
+      div.onclick = (e) => {
+        e.stopPropagation();
+        if (isKid) { calKidFilter = o.id; updateCalKidLabel(); }
+        else { calPersonFilter = o.id; updateCalPersonLabel(); }
+        closeFilterDD(id);
+        renderCalendar();
+      };
+      opts.appendChild(div);
+    });
+  };
+  renderOpts();
+  searchInput.addEventListener('input', e => renderOpts(e.target.value));
+  setTimeout(() => searchInput.focus(), 50);
+}
+
+function updateCalKidLabel() {
+  const dd = document.getElementById('cal-kid-dd');
+  const label = document.getElementById('cal-kid-label');
+  if (calKidFilter === 'all') { label.textContent = 'All kids'; dd.classList.remove('active'); }
+  else { label.textContent = '👦 ' + calKidFilter; dd.classList.add('active'); }
+}
+function updateCalPersonLabel() {
+  const dd = document.getElementById('cal-person-dd');
+  const label = document.getElementById('cal-person-label');
+  if (calPersonFilter === 'all') { label.textContent = 'All families'; dd.classList.remove('active'); }
+  else {
+    const u = state.users.find(x => x.id === calPersonFilter);
+    label.textContent = u ? u.name : 'All families';
+    dd.classList.add('active');
+  }
+}
+
+function renderFilters() {
+  // List tab still uses pills
+  const bar = document.getElementById('list-filters');
+  bar.innerHTML = '';
+  [{ id: 'all', name: 'All' }, ...state.users.map(u => ({ id: u.id, name: u.name }))].forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-pill' + (listFilter === f.id ? ' active' : '');
+    btn.textContent = f.name;
+    btn.onclick = () => setListFilter(f.id);
+    bar.appendChild(btn);
+  });
+  // Refresh calendar dropdown labels in case users changed
+  updateCalKidLabel();
+  updateCalPersonLabel();
+}
+
+function setListFilter(f) { listFilter = f; renderFilters(); renderList(); }
+
+function filtered() {
+  return state.activities.filter(a => {
+    const personOk = calPersonFilter === 'all' || a.userId === calPersonFilter;
+    const kidOk = calKidFilter === 'all' || kidsForActivity(a).includes(calKidFilter);
+    return personOk && kidOk;
   });
 }
-function setCalFilter(f) { calFilter=f; renderFilters(); renderCalendar(); }
-function setListFilter(f) { listFilter=f; renderFilters(); renderList(); }
-function filtered(f) { return state.activities.filter(a=>f==='all'||a.userId===f); }
+
+function filteredList(f) {
+  return state.activities.filter(a => f === 'all' || a.userId === f);
+}
 
 // ─── Calendar ────────────────────────────────────────────────────
 function changeMonth(d) {
@@ -873,7 +1014,7 @@ function renderCalendar() {
   const firstDay=new Date(curYear,curMonth,1).getDay();
   const days=new Date(curYear,curMonth+1,0).getDate();
   const today=new Date();
-  const acts=filtered(calFilter);
+  const acts=filtered();
   for(let i=0;i<firstDay;i++){const c=document.createElement('div');c.className='cal-cell empty';grid.appendChild(c);}
   for(let d=1;d<=days;d++){
     const ds=`${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -905,7 +1046,7 @@ function renderCalendar() {
 // ─── List ────────────────────────────────────────────────────────
 function renderList() {
   const view=document.getElementById('list-view');
-  const acts=filtered(listFilter).sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  const acts=filteredList(listFilter).sort((a,b)=>a.startDate.localeCompare(b.startDate));
   view.innerHTML='';
   if(!acts.length){
     view.innerHTML='<div style="text-align:center;padding:3rem;color:var(--muted)"><p style="font-size:15px">No activities yet</p><p style="font-size:13px;margin-top:6px">Click "+ Add activity" to get started</p></div>';
