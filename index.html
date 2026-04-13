@@ -656,11 +656,8 @@ function scheduleSave() {
 }
 
 async function flushSave() {
-  showToast('Saving…', 'saving');
   try {
     await apiPost(state);
-    showToast('Saved ✓', 'ok');
-    hideToast();
   } catch(e) {
     showToast('Save failed — check connection', 'error');
     console.error('Save failed:', e);
