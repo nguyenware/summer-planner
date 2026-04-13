@@ -237,6 +237,16 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .export-select-link { font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline; background: none; border: none; font-family: 'DM Sans', sans-serif; padding: 0; }
 .export-select-link:hover { color: var(--ink); }
 .export-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 2rem 0; font-style: italic; }
+.subscribe-box { background: #F1EFE8; border-radius: var(--border-radius-md, 10px); padding: 12px 14px; margin-bottom: 1rem; }
+.subscribe-box-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+.subscribe-box-desc { font-size: 12px; color: var(--muted); margin-bottom: 8px; line-height: 1.5; }
+.subscribe-url-row { display: flex; gap: 6px; }
+.subscribe-url { flex: 1; font-size: 11px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; background: white; color: var(--ink); font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; outline: none; }
+.subscribe-copy-btn { padding: 6px 12px; background: var(--ink); color: white; border: none; border-radius: 7px; font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap; }
+.subscribe-copy-btn:hover { opacity: 0.85; }
+.subscribe-apps { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.subscribe-app-btn { font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: white; cursor: pointer; color: var(--ink); font-family: 'DM Sans', sans-serif; text-decoration: none; display: inline-block; }
+.subscribe-app-btn:hover { background: #f5f5f5; }
 </style>
 </head>
 <body>
@@ -365,11 +375,20 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
       <button class="export-select-link" onclick="exportSelectNone()">None</button>
     </div>
     <div class="export-event-list" id="export-event-list"></div>
+    <div class="subscribe-box">
+      <div class="subscribe-box-label">📅 Calendar subscription</div>
+      <div class="subscribe-box-desc">Subscribe to get all events — updates automatically when new activities are added.</div>
+      <div class="subscribe-url-row">
+        <input class="subscribe-url" id="subscribe-url" readonly value="Loading…">
+        <button class="subscribe-copy-btn" onclick="copySubscribeUrl()">Copy</button>
+      </div>
+      <div class="subscribe-apps" id="subscribe-apps"></div>
+    </div>
     <div class="export-footer">
       <span class="export-count" id="export-count"></span>
       <div style="display:flex;gap:8px">
         <button class="btn-cancel" onclick="closeExportModal()">Cancel</button>
-        <button class="btn-save" onclick="downloadIcs()">Download .ics</button>
+        <button class="btn-save" onclick="downloadIcs()">↓ Download .ics</button>
       </div>
     </div>
   </div>
@@ -954,7 +973,7 @@ function renderPeople() {
       </div>
       <div class="person-activity-list">${actList||'<span>No activities yet</span>'}</div>
       ${myActs.length>4?`<div style="font-size:11px;color:var(--muted);margin-top:8px">+${myActs.length-4} more</div>`:''}
-      ${totalCost>0?`<div class="person-total">Total invested: ${fmtCost(totalCost)}</div>`:''}
+
     `;
     grid.appendChild(card);
   });
@@ -1239,11 +1258,55 @@ let exportChecked = new Set();
 
 function openExportModal() {
   exportKidFilter = 'all';
-  // Pre-check all activities
   exportChecked = new Set(state.activities.map(a => a.id));
   renderExportKidFilters();
   renderExportEventList();
+  renderSubscribeBox();
   document.getElementById('export-modal').style.display = 'flex';
+}
+
+function renderSubscribeBox() {
+  const base = window.location.origin;
+  const pass = sessionStorage.getItem(SESSION_PASS_KEY) || '';
+  const url = base + '/api/calendar?token=' + encodeURIComponent(pass);
+  document.getElementById('subscribe-url').value = url;
+
+  // Deep-link buttons for common calendar apps
+  const webcal = url.replace(/^https?:/, 'webcal:');
+  const googleUrl = 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(url);
+  const apps = document.getElementById('subscribe-apps');
+  apps.innerHTML = '';
+  [
+    { label: '🍎 Apple Calendar', href: webcal },
+    { label: '🗓 Google Calendar', href: googleUrl },
+    { label: '📋 Copy webcal://', href: null, webcal: true },
+  ].forEach(a => {
+    const btn = document.createElement(a.href ? 'a' : 'button');
+    btn.className = 'subscribe-app-btn';
+    btn.textContent = a.label;
+    if (a.href) {
+      btn.href = a.href;
+      if (!a.webcal) btn.target = '_blank';
+      btn.rel = 'noopener';
+    } else {
+      btn.onclick = () => {
+        navigator.clipboard.writeText(webcal).then(() => {
+          btn.textContent = '✓ Copied!';
+          setTimeout(() => btn.textContent = '📋 Copy webcal://', 2000);
+        });
+      };
+    }
+    apps.appendChild(btn);
+  });
+}
+
+function copySubscribeUrl() {
+  const url = document.getElementById('subscribe-url').value;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.querySelector('.subscribe-copy-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
 }
 function closeExportModal() {
   document.getElementById('export-modal').style.display = 'none';
