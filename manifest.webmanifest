@@ -1,0 +1,12 @@
+{
+  "name": "Summer Planner 2026",
+  "short_name": "Summer",
+  "description": "Shared multi-family summer activity planner",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#1A1A2E",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

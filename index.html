@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1A1A2E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Summer Planner">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
 <title>☀️ Summer Planner 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -15,10 +22,12 @@
   --radius: 16px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: var(--ink); min-height: 100vh; }
+html { -webkit-tap-highlight-color: transparent; }
+body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: var(--ink); min-height: 100vh; min-height: 100dvh; }
+button, select, a { touch-action: manipulation; }
 
 /* Header */
-.site-header { background: var(--ink); color: white; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 50; }
+.site-header { background: var(--ink); color: white; padding: 0 2rem; padding-top: env(safe-area-inset-top); display: flex; align-items: center; justify-content: space-between; height: calc(60px + env(safe-area-inset-top)); position: sticky; top: 0; z-index: 50; }
 .site-logo { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500; }
 .user-pill { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 5px 12px 5px 6px; cursor: pointer; font-size: 13px; color: white; transition: background 0.15s; }
 .user-pill:hover { background: rgba(255,255,255,0.18); }
@@ -119,7 +128,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 
 /* Modals */
 .modal-overlay { position: fixed; inset: 0; background: rgba(10,10,25,0.5); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem; backdrop-filter: blur(2px); }
-.modal { background: white; border-radius: 20px; padding: 1.75rem; width: min(540px,100%); max-height: 92vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.18); }
+.modal { background: white; border-radius: 20px; padding: 1.75rem; width: min(540px,100%); max-height: 92vh; max-height: 92dvh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.18); }
 .modal h2 { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500; margin-bottom: 1.25rem; }
 .form-row { margin-bottom: 14px; }
 .form-row label { font-size: 11px; font-weight: 500; color: var(--muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -167,7 +176,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .delete-link { font-size: 12px; color: #CC3333; cursor: pointer; text-decoration: underline; background: none; border: none; font-family: 'DM Sans', sans-serif; }
 
 /* Login */
-.login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--page-bg); padding: 2rem; }
+.login-screen { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: var(--page-bg); padding: 2rem; }
 .login-card { background: white; border-radius: 24px; padding: 2.5rem; width: min(420px,100%); box-shadow: 0 8px 40px rgba(0,0,0,0.08); text-align: center; }
 .login-sun { font-size: 48px; margin-bottom: 16px; }
 .login-card h1 { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 300; margin-bottom: 6px; }
@@ -204,7 +213,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .add-person-inline h3 { font-size: 13px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
 
 /* Toast */
- position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: white; font-size: 12px; padding: 8px 16px; border-radius: 999px; opacity: 0; transition: opacity 0.25s; z-index: 300; pointer-events: none; display: flex; align-items: center; gap: 8px; }
+.toast { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 24px; background: var(--ink); color: white; font-size: 12px; padding: 8px 16px; border-radius: 999px; opacity: 0; transition: opacity 0.25s; z-index: 300; pointer-events: none; display: flex; align-items: center; gap: 8px; }
 .toast.show { opacity: 1; }
 .toast.error { background: #A32D2D; }
 .spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
@@ -214,15 +223,72 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 .offline-banner { background: #FAEEDA; border-bottom: 1px solid #EF9F27; padding: 8px 2rem; font-size: 13px; color: #854F0B; display: none; text-align: center; }
 .offline-banner.show { display: block; }
 
-@media (max-width: 600px) {
-  .main { padding: 1rem 1rem 4rem; }
-  .hero { padding: 1.75rem 1rem 1.5rem; }
-  .site-header { padding: 0 1rem; }
+/* Day sheet (tap a calendar day) */
+.day-sheet-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 500; margin-bottom: 1rem; }
+.day-sheet-row { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer; background: white; transition: border-color 0.12s; }
+.day-sheet-row:hover { border-color: rgba(26,26,46,0.25); }
+.day-sheet-row:active { background: var(--page-bg); }
+.day-sheet-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+.day-sheet-name { font-size: 14px; font-weight: 500; }
+.day-sheet-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.day-add-btn { width: 100%; padding: 12px; border: 1px dashed rgba(26,26,46,0.25); border-radius: 12px; background: none; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; margin-top: 4px; }
+.day-add-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+@keyframes sheet-up { from { transform: translateY(48px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+
+@media (max-width: 640px) {
+  .main { padding: 1rem 0.75rem calc(6rem + env(safe-area-inset-bottom)); }
+  .hero { padding: 1.5rem 1rem 1.25rem; }
+  .site-header { padding-left: 1rem; padding-right: 1rem; }
   .form-2col, .form-3col { grid-template-columns: 1fr; }
-  .cal-cell { min-height: 64px; }
+
+  /* Stat chips scroll horizontally instead of stacking */
+  .stats-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -1rem; padding: 0 1rem 4px; }
+  .stats-row::-webkit-scrollbar { display: none; }
+  .stat-chip { flex-shrink: 0; white-space: nowrap; }
+
+  /* Bigger touch targets */
+  .tabs { width: 100%; display: flex; }
+  .tab { flex: 1; padding: 10px 8px; font-size: 14px; }
+  .month-btn { width: 40px; height: 40px; font-size: 18px; border-radius: 10px; }
+  .month-label { font-size: 17px; }
+  .filter-pill { padding: 8px 14px; font-size: 13px; }
+  .filter-dd { padding: 9px 12px 9px 14px; font-size: 14px; }
+  .export-btn { padding: 9px 14px; }
+  .user-pill { padding: 7px 12px 7px 7px; }
+  .roster-edit-btn, .roster-remove-btn { padding: 8px 12px; }
+  .pm-kid-remove { padding: 6px 10px; }
+  .modal-actions .btn-save, .modal-actions .btn-cancel, .btn-edit, .btn-cancel, .btn-save { padding: 12px 20px; font-size: 14px; }
+  .kid-chip, .user-chip { padding: 8px 14px; font-size: 14px; }
+
+  /* 16px inputs so iOS Safari doesn't zoom on focus */
+  .form-row input, .form-row select, .form-row textarea,
+  .gate-input-row input, .pm-add-kid-row input,
+  .filter-dd-search input, .subscribe-url { font-size: 16px; }
+
+  /* Floating add button, thumb-reachable */
+  .add-btn { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom)); right: 16px; z-index: 90; margin-left: 0; padding: 14px 22px; font-size: 15px; font-weight: 500; box-shadow: 0 6px 20px rgba(26,26,46,0.3); }
+
+  /* Calendar: compact cells with color bars; tap a day for details */
+  .cal-grid, .cal-header-row { gap: 2px; }
+  .cal-cell { min-height: 58px; padding: 4px; border-radius: 8px; }
+  .cal-date { font-size: 11px; margin-bottom: 3px; }
+  .event-chip { height: 5px; padding: 0; margin-bottom: 3px; border-radius: 3px; overflow: hidden; font-size: 0; color: transparent; pointer-events: none; background: var(--chip-strong, var(--muted)) !important; }
+  .more-chip { font-size: 9px; padding: 0; }
+
+  /* Modals become bottom sheets */
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal { width: 100%; max-height: 88dvh; border-radius: 20px 20px 0 0; padding: 0.85rem 1.15rem calc(1.25rem + env(safe-area-inset-bottom)); animation: sheet-up 0.22s ease; }
+  .modal::before { content: ''; display: block; width: 36px; height: 4px; border-radius: 2px; background: rgba(26,26,46,0.15); margin: 0 auto 14px; }
+
+  /* Toast above the floating button */
+  .toast { left: 50%; right: auto; transform: translateX(-50%); white-space: nowrap; bottom: calc(84px + env(safe-area-inset-bottom)); }
+
+  .list-item { padding: 12px; gap: 10px; }
+  .offline-banner { padding: 8px 1rem; }
 }
 /* Password gate */
-.gate-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--page-bg); padding: 2rem; }
+.gate-screen { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: var(--page-bg); padding: 2rem; }
 .gate-card { background: white; border-radius: 24px; padding: 2.5rem; width: min(380px,100%); box-shadow: 0 8px 40px rgba(0,0,0,0.08); text-align: center; }
 .gate-icon { font-size: 40px; margin-bottom: 16px; }
 .gate-card h1 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; margin-bottom: 6px; }
@@ -500,11 +566,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
     <div class="form-2col" style="margin-top:14px">
       <div class="form-row" style="margin:0">
         <label>Cost</label>
-        <input id="f-cost" placeholder="e.g. 263" type="number" min="0" step="0.01">
-      </div>
-      <div class="form-row" style="margin:0">
-        <label>Category</label>
-        <!-- placeholder col for alignment -->
+        <input id="f-cost" placeholder="e.g. 263" type="number" min="0" step="0.01" inputmode="decimal">
       </div>
     </div>
     <div class="form-row" style="margin-top:14px">
@@ -537,6 +599,11 @@ body { font-family: 'DM Sans', sans-serif; background: var(--page-bg); color: va
 <!-- Detail Modal -->
 <div id="detail-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
   <div class="modal" id="detail-content"></div>
+</div>
+
+<!-- Day sheet -->
+<div id="day-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" id="day-content"></div>
 </div>
 
 <div class="toast" id="toast"><div class="spinner" id="toast-spinner"></div><span id="toast-msg"></span></div>
@@ -783,7 +850,7 @@ function renderLogin() {
       div.onclick = () => loginAs(u.id);
       div.innerHTML = `
         <div class="person-avatar" style="background:${c.avatarBg};color:${c.avatarText};width:40px;height:40px;font-size:14px">${initials(u.name)}</div>
-        <div><div class="user-option-name">${u.name}</div><div class="user-option-kids">${u.kids||'Family member'}</div></div>
+        <div><div class="user-option-name">${esc(u.name)}</div><div class="user-option-kids">${(u.kids&&u.kids.length)?esc(Array.isArray(u.kids)?u.kids.join(', '):u.kids):'Family member'}</div></div>
       `;
       list.appendChild(div);
     });
@@ -1021,19 +1088,24 @@ function renderCalendar() {
     const isToday=today.getDate()===d&&today.getMonth()===curMonth&&today.getFullYear()===curYear;
     const cell=document.createElement('div');
     cell.className='cal-cell'+(isToday?' today':'');
-    cell.onclick=()=>{document.getElementById('f-start').value=ds;openAddModal();};
-    const dn=document.createElement('div');dn.className='cal-date';dn.textContent=d;cell.appendChild(dn);
     const dayActs=acts.filter(a=>{
       const s=new Date(a.startDate+'T00:00:00');
       const e=a.endDate?new Date(a.endDate+'T23:59:59'):new Date(a.startDate+'T23:59:59');
       const cur=new Date(curYear,curMonth,d);
       return cur>=s&&cur<=e;
     });
+    // Days with activities open a day sheet; empty days jump straight to Add
+    cell.onclick=()=>{
+      if(dayActs.length){openDaySheet(ds);}
+      else{document.getElementById('f-start').value=ds;openAddModal();}
+    };
+    const dn=document.createElement('div');dn.className='cal-date';dn.textContent=d;cell.appendChild(dn);
     dayActs.slice(0,2).forEach(a=>{
       const cat=CAT[a.category]||CAT.other;
       const chip=document.createElement('div');
       chip.className='event-chip';
       chip.style.background=cat.bg;chip.style.color=cat.text;
+      chip.style.setProperty('--chip-strong',cat.text);
       chip.textContent=cat.emoji+' '+a.title;
       chip.onclick=e=>{e.stopPropagation();openDetail(a);};
       cell.appendChild(chip);
@@ -1041,6 +1113,48 @@ function renderCalendar() {
     if(dayActs.length>2){const m=document.createElement('div');m.className='more-chip';m.textContent=`+${dayActs.length-2} more`;cell.appendChild(m);}
     grid.appendChild(cell);
   }
+}
+
+// ─── Day sheet ───────────────────────────────────────────────────
+function activitiesOnDate(ds){
+  const cur=new Date(ds+'T12:00:00');
+  return filtered().filter(a=>{
+    const s=new Date(a.startDate+'T00:00:00');
+    const e=(a.endDate||a.startDate)+'T23:59:59';
+    return cur>=s&&cur<=new Date(e);
+  }).sort((a,b)=>a.startDate.localeCompare(b.startDate));
+}
+
+function openDaySheet(ds){
+  const acts=activitiesOnDate(ds);
+  const label=new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const content=document.getElementById('day-content');
+  content.innerHTML=`<div class="day-sheet-title">${label}</div><div id="day-sheet-rows"></div>`;
+  const rows=content.querySelector('#day-sheet-rows');
+  acts.forEach(a=>{
+    const cat=CAT[a.category]||CAT.other;
+    const kids=kidsForActivity(a);
+    const row=document.createElement('div');
+    row.className='day-sheet-row';
+    row.innerHTML=`
+      <div class="day-sheet-icon" style="background:${cat.bg}">${cat.emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div class="day-sheet-name">${esc(a.title)}</div>
+        <div class="day-sheet-meta">${a.time?esc(a.time):dateLabel(a)}${kids.length?' · 👦 '+kids.map(esc).join(', '):''}</div>
+      </div>`;
+    row.onclick=()=>{document.getElementById('day-modal').style.display='none';openDetail(a);};
+    rows.appendChild(row);
+  });
+  const addBtn=document.createElement('button');
+  addBtn.className='day-add-btn';
+  addBtn.textContent='＋ Add activity on this day';
+  addBtn.onclick=()=>{
+    document.getElementById('day-modal').style.display='none';
+    document.getElementById('f-start').value=ds;
+    openAddModal();
+  };
+  content.appendChild(addBtn);
+  document.getElementById('day-modal').style.display='flex';
 }
 
 // ─── List ────────────────────────────────────────────────────────
@@ -1693,6 +1807,32 @@ async function submitGate() {
     btn.textContent = 'Enter'; btn.disabled = false;
   }
 }
+
+// ─── Mobile niceties ─────────────────────────────────────────────
+// Swipe left/right on the calendar to change months
+(function(){
+  const el=document.getElementById('tab-calendar');
+  let sx=null,sy=null;
+  el.addEventListener('touchstart',e=>{
+    sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+  },{passive:true});
+  el.addEventListener('touchend',e=>{
+    if(sx===null)return;
+    const dx=e.changedTouches[0].clientX-sx;
+    const dy=e.changedTouches[0].clientY-sy;
+    sx=sy=null;
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*2) changeMonth(dx<0?1:-1);
+  },{passive:true});
+})();
+
+// Escape closes any open modal
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  ['export-modal','people-modal','add-modal','detail-modal','day-modal'].forEach(id=>{
+    const m=document.getElementById(id);
+    if(m&&m.style.display!=='none'){m.style.display='none';if(id==='add-modal')editingId=null;}
+  });
+});
 
 // ─── Boot / Gate ──────────────────────────────────────────────────
 (async function init() {
